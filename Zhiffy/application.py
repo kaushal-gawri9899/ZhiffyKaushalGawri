@@ -1,3 +1,6 @@
+"""
+Importing the necessary Libraries
+"""
 from flask import Flask
 import bcrypt
 from flask_pymongo import PyMongo
@@ -8,27 +11,36 @@ from bson.objectid import ObjectId
 
 from flask import jsonify, request
 
-from werkzeug.security import generate_password_hash, check_password_hash
-
 from pymongo import MongoClient
 
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token
 
-
+#Use MongoClient to connect to the local MongoDB instance
 dbClient = MongoClient("mongodb://localhost:27017/")
 
+#Create a database for the application
 db = dbClient["application_db"]
 
+#database created will have multiple collections, 
+# one for storing all the registered user details 
+# other for storing all the product details
 zhiffy = db["Zhiffy"]
 items = db["Items"]
 
+#Creating a flask app and configuring that with JWTManager to secure the entire app
 app = Flask(__name__)
 jwt = JWTManager(app)
 
 app.config["JWT_SECRET_KEY"] = "ACCESS_KEY_999"
-#mongo = PyMongo(app)
 
 
+"""
+Register API route : Used for registering users to the system and adding to Zhiffy collection
+Uses bcrypt python library to hash the passwords that user enters using random salts after the password is encoded
+Returns an access token with a successfull registeration message
+Error handling for empty strings could be added using a simple if conditions but skipped for now
+As suggested in specification, details from form data acts as input.
+"""
 @app.route("/register", methods=["POST"])
 def register():
     user_email = request.form["email"]
@@ -48,6 +60,15 @@ def register():
         return jsonify(message="Voila! User Registration Successful.", access_token=user_access_token), 201
 
 
+"""
+Login API route : Used for providing access to users for the system
+Uses bcrypt python library to hash the passwords that user enters using random salts after the password is encoded
+Hashed password is compared to the password stored in collection and authorization is completed
+Returns an access token with a successfull login message
+Access Token is used for authorizatioton in other methods
+Error handling for empty strings could be added using a simple if conditions but skipped for now
+As suggested in specification, login details are taken as json string
+"""
 @app.route("/login", methods=["POST"])
 def login():
 
@@ -64,6 +85,12 @@ def login():
 
     return "Invalid Credentials. Please Retry."
 
+"""
+Change User Detail API route : Used to update the details of user stored in collection
+Uses PUT Http request to replace the current details with the newly updated one
+Returns a success message
+A decorator is added to add security for the current method, user with only access token provided during login can perform operation
+"""
 @app.route("/changeUserDetails/<uid>", methods=["PUT"])
 @jwt_required()
 def changeUserDetail(uid):
@@ -78,6 +105,14 @@ def changeUserDetail(uid):
     return jsonify(message="User Details with Email {"+user_email+"} and ID {"+str(ObjectId(uid))+"} Updated.")
 
 
+"""
+Insert Product API route : Adds a product or items to the collection with pre decided attributes. 
+Pre decided attributes are used to the best of my knowledge
+Validates empty string for details and converts the values to a dictionary
+Dictionary is then added to the "items" collection
+Returns a success message
+A decorator is added to add security for the current method, user with only access token provided during login can perform operation
+"""
 @app.route("/insertProducts", methods=["POST"])
 @jwt_required()
 def insertProducts():
@@ -98,7 +133,10 @@ def insertProducts():
     return jsonify(message="Please complete all the fields")
 
 
-
+"""
+See All Products Route : Returns a json string which is converted using json.dumps() that converts bson to json
+A json string containing all the product details is returned
+"""
 @app.route("/seeAllProducts", methods=["GET"])
 def getAllItems():
     allItems = items.find()
@@ -106,7 +144,9 @@ def getAllItems():
     return results
 
 
-
+"""
+See Details of Given Product Route : Returns a json string containing details of given product based on product ID
+"""
 @app.route("/seeAllProducts/<pid>", methods=["GET"])
 def getItemDetails(pid):
     item = items.find_one({"_id": ObjectId(pid)})
@@ -114,7 +154,10 @@ def getItemDetails(pid):
     return result
 
 
-
+"""
+Delete Product of Given Route : Deletes a given product based on product ID
+Returns a json string with success method
+"""
 @app.route("/deleteProduct/<pid>", methods=["DELETE"])
 def deleteGivenItem(pid):
     
@@ -125,6 +168,11 @@ def deleteGivenItem(pid):
     return result
 
     
+"""
+Change Item Detail API route : Used to update the details of items stored in collection
+Uses PUT Http request to replace the current details with the newly updated one
+Returns a success message
+"""
 @app.route("/changeItemDetails/<pid>", methods=["PUT"])
 def changeItemDetail(pid):
     _json = request.json
