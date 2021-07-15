@@ -1,0 +1,18 @@
+stages:          # List of stages for jobs, and their order of execution
+  - test
+
+test_app:
+  image: python:latest
+  stage: test
+  before_script:
+  - python -V
+  - pip install virtualenv
+  - virtualenv env
+  - source env/bin/activate
+  script:
+  - pip install flask
+  - pip install bcrypt
+  - pip install flask_pymongo
+  - pip install flask_jwt
+  - pip install flask_jwt_extended
+  - python ./Zhiffy/application.py
