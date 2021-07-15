@@ -1,5 +1,7 @@
-stages:          # List of stages for jobs, and their order of execution
+stages: 
+  - build         # List of stages for jobs, and their order of execution
   - test
+  - deploy
 
 test_app:
   image: python:latest
