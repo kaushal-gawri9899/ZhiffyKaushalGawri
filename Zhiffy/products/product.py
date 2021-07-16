@@ -40,24 +40,41 @@ A decorator is added to add security for the current method, user with only acce
 @jwt_required()
 def insertProducts():
     try:
-        _json = request.json
-        item_category = _json["category"]
-        item_brand = _json["brand"]
-        item_model = _json["model"]
-        item_purchase = _json["purchase_date"]
-        item_price = _json["price"]
-        item_location = _json["location"]
+        """
+        Using Json body
+        """
+        # _json = request.json
+        # item_category = _json["category"]
+        # item_brand = _json["brand"]
+        # item_model = _json["model"]
+        # item_purchase = _json["purchase_date"]
+        # item_price = _json["price"]
+        # item_location = _json["location"]
+      
+        item_category = request.form["category"]
+        item_brand = request.form["brand"]
+        item_model = request.form["model"]
+        item_purchase = request.form["purchase_date"]
+        item_price = request.form["price"]
+        item_location = request.form["location"]
 
         if item_category and item_brand and item_purchase and item_purchase and item_price and item_location and request.method == 'POST':
-            item_data = dict(category=item_category, brand=item_brand, model=item_model, purchase_date=item_purchase, price=item_price, location=item_location)
+            if 'product_image' in request.files:
+                product_img = request.files['product_image']
+                config.mongo.save_file(product_img.filename, product_img)
+                
+                
+                item_data = dict(category=item_category, brand=item_brand, model=item_model, purchase_date=item_purchase, price=item_price, location=item_location, product_image=product_img.filename)
         
-            id = config.items.insert_one(item_data)
-            return jsonify(message="Item Added Successfully", flag=True), 201
+                id = config.items.insert_one(item_data)
+                return jsonify(message="Item Added Successfully", flag=True), 201
     
         return jsonify(message="Empty Fields Found. Please Fill all Details,", flag=False), 404
     
     except (ex.BadRequestKeyError, KeyError):
         return internal_error()
+
+
 
 
 @product_bp.errorhandler(500)
@@ -104,6 +121,24 @@ def getItemDetails(pid):
 
         result = dumps(item)
         return result
+    
+    except (ex.BadRequestKeyError, KeyError):
+        return internal_error()
+    
+    except bson.errors.InvalidId:
+        return internal_error_invalid_ID()
+
+@product_bp.route('/seeAllProducts/image/<pid>')
+def getItemImage(pid):
+    try:
+        item = config.items.find_one({"_id": ObjectId(pid)})
+
+        if not item:
+            return jsonify(message="Invalid ID provided", flag=False), 404
+
+        img = item["product_image"]
+
+        return config.mongo.send_file(img)
     
     except (ex.BadRequestKeyError, KeyError):
         return internal_error()
